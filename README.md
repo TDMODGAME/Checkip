@@ -7,9 +7,7 @@ pkg install git
 
 termux-setup-storage
 
-git clone https://github.com/TDMODGAME/Checkip/checkip.sh
-
-cd Checkip
+git clone https://github.com/TDMODGAME/Checkip
 
 chmod +x checkip.sh
 
