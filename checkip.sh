@@ -11,9 +11,10 @@ show_menu() {
     clear
     echo -e "${YELLOW}=== IP & Blacklist Checker Tool ===${NC}"
     echo "1. Kiểm tra IP"
-    echo "2. Kiểm tra dãy IP (và thống kê)"
-    echo "3. Kiểm tra nhiều IP khác nhau (và thống kê)"
-    echo "4. Thoát"
+    echo "2. Kiểm tra dãy IP (thống kê)"
+    echo "3. Kiểm tra nhiều IP khác nhau (thống kê)"
+    echo "4. Kiểm tra nhiều dãy IP (thống kê)"
+    echo "5. Thoát"
     echo -e "${YELLOW}============================${NC}"
 }
 
@@ -25,7 +26,6 @@ check_current_ip() {
         echo -e "${RED}Không thể lấy IP. Vui lòng kiểm tra kết nối mạng!${NC}"
     else
         echo -e "${GREEN}IP hiện tại của bạn: $IP${NC}"
-        # Kiểm tra xem IP có trong blacklist không
         check_ip_blacklist "$IP"
     fi
     read -p "Nhấn Enter để tiếp tục..."
@@ -35,7 +35,6 @@ check_current_ip() {
 check_ip_blacklist() {
     local ip=$1
     echo -e "${YELLOW}Đang kiểm tra $ip trong blacklist...${NC}"
-    # Sử dụng một dịch vụ blacklist công cộng (ví dụ: dnsbl.info)
     RESPONSE=$(curl -s "http://api.dnsbl.info/check.php?ip=$ip")
     if echo "$RESPONSE" | grep -q "listed"; then
         echo -e "${RED}IP $ip bị liệt kê trong blacklist!${NC}"
@@ -45,13 +44,12 @@ check_ip_blacklist() {
     fi
 }
 
-# Hàm kiểm tra dãy IP bị blacklist và thống kê
+# Hàm kiểm tra một dãy IP bị blacklist và thống kê
 check_ip_range() {
     echo -e "${YELLOW}Nhập dãy IP (ví dụ: 192.168.1.0-192.168.1.255):${NC}"
     read -p "Dãy IP: " range
     IFS='-' read -r start_ip end_ip <<< "$range"
     
-    # Chuyển đổi IP thành số để lặp
     start=$(echo $start_ip | awk -F'.' '{print ($1*256^3)+($2*256^2)+($3*256)+$4}')
     end=$(echo $end_ip | awk -F'.' '{print ($1*256^3)+($2*256^2)+($3*256)+$4}')
     
@@ -59,11 +57,9 @@ check_ip_range() {
     for ((i=start; i<=end; i++)); do
         current_ip=$(printf "%d.%d.%d.%d" $((i>>24&255)) $((i>>16&255)) $((i>>8&255)) $((i&255)))
         check_ip_blacklist "$current_ip"
-        sleep 1 # Tránh gửi yêu cầu quá nhanh
+        sleep 1
     done
     echo -e "${GREEN}Đã kiểm tra xong dãy IP.${NC}"
-    
-    # Thống kê ngay sau khi kiểm tra
     show_stats
 }
 
@@ -73,14 +69,33 @@ check_multiple_ips() {
     read -p "Danh sách IP: " ip_list
     echo -e "${GREEN}Đang kiểm tra các IP...${NC}"
     
-    # Lặp qua từng IP trong danh sách
     for ip in $ip_list; do
         check_ip_blacklist "$ip"
-        sleep 1 # Tránh gửi yêu cầu quá nhanh
+        sleep 1
     done
     echo -e "${GREEN}Đã kiểm tra xong các IP.${NC}"
+    show_stats
+}
+
+# Hàm kiểm tra nhiều dãy IP và thống kê
+check_multiple_ranges() {
+    echo -e "${YELLOW}Nhập các dãy IP (cách nhau bằng dấu cách, ví dụ: 192.168.1.0-192.168.1.10 10.0.0.0-10.0.0.5):${NC}"
+    read -p "Danh sách dãy IP: " range_list
+    echo -e "${GREEN}Đang kiểm tra các dãy IP...${NC}"
     
-    # Thống kê ngay sau khi kiểm tra
+    for range in $range_list; do
+        IFS='-' read -r start_ip end_ip <<< "$range"
+        start=$(echo $start_ip | awk -F'.' '{print ($1*256^3)+($2*256^2)+($3*256)+$4}')
+        end=$(echo $end_ip | awk -F'.' '{print ($1*256^3)+($2*256^2)+($3*256)+$4}')
+        
+        echo -e "${GREEN}Kiểm tra dãy từ $start_ip đến $end_ip...${NC}"
+        for ((i=start; i<=end; i++)); do
+            current_ip=$(printf "%d.%d.%d.%d" $((i>>24&255)) $((i>>16&255)) $((i>>8&255)) $((i&255)))
+            check_ip_blacklist "$current_ip"
+            sleep 1
+        done
+    done
+    echo -e "${GREEN}Đã kiểm tra xong các dãy IP.${NC}"
     show_stats
 }
 
@@ -101,12 +116,13 @@ show_stats() {
 # Vòng lặp chính
 while true; do
     show_menu
-    read -p "Chọn một tùy chọn (1-4): " choice
+    read -p "Chọn một tùy chọn (1-5): " choice
     case $choice in
         1) check_current_ip ;;
         2) check_ip_range ;;
         3) check_multiple_ips ;;
-        4) echo -e "${GREEN}Tạm biệt!${NC}"; exit 0 ;;
+        4) check_multiple_ranges ;;
+        5) echo -e "${GREEN}Tạm biệt!${NC}"; exit 0 ;;
         *) echo -e "${RED}Lựa chọn không hợp lệ!${NC}"; sleep 1 ;;
     esac
 done
