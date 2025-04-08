@@ -36,6 +36,9 @@ check_ip_blacklist() {
     local ip=$1
     echo -e "${YELLOW}Đang kiểm tra $ip trong blacklist...${NC}"
     RESPONSE=$(curl -s "http://api.dnsbl.info/check.php?ip=$ip")
+    RESPONSE=$(curl -s "https://api.barracudacentral.org/lookups?ip=$ip")
+    RESPONSE=$(curl -s "https://api.spamcop.net/bl?ip=$ip")
+    RESPONSE=$(curl -s "https://check.spamhaus.org?ip=$ip")
     if echo "$RESPONSE" | grep -q "listed"; then
         echo -e "${RED}IP $ip bị liệt kê trong blacklist!${NC}"
         echo "$ip" >> blacklist_ips.txt
