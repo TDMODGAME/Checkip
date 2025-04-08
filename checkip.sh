@@ -35,7 +35,7 @@ check_single_ip() {
 check_ip_blacklist() {
     local ip=$1
     echo -e "${YELLOW}Đang kiểm tra $ip trong blacklist...${NC}"
-    RESPONSE=$(curl -s "http://api.dnsbl.info/check.php?ip=$ip" "https://spamrats.com/lookup.php?ip=$ip" "https://barracudacentral.org/lookups/lookup-reputation=$ip" "https://spamcop.net/w3m?action=checkblock&ip=$ip" "https://check.spamhaus.org/results?query=$ip")
+    RESPONSE=$(curl -s "http://api.dnsbl.info/check.php?ip=$ip" "https://api.spamrats.com/lookup.php?ip=$ip" "https://api.barracudacentral.org/lookups/lookup-reputation=$ip" "https://api.spamcop.net/w3m?action=checkblock&ip=$ip" "https://api.check.spamhaus.org/results?query=$ip")
     if echo "$RESPONSE" | grep -q "listed"; then
         echo -e "${RED}IP $ip bị liệt kê trong blacklist!${NC}"
         echo "$ip" >> blacklist_ips.txt
