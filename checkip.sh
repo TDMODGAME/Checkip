@@ -10,9 +10,10 @@ NC='\033[0m' # No Color
 show_menu() {
     clear
     echo -e "${YELLOW}=== IP & Blacklist Checker Tool ===${NC}"
-    echo "1. Kiểm tra IP hiện tại của bạn"
-    echo "2. Kiểm tra dãy IP bị blacklist (và thống kê)"
-    echo "3. Thoát"
+    echo "1. Kiểm tra IP"
+    echo "2. Kiểm tra dãy IP (và thống kê)"
+    echo "3. Kiểm tra nhiều IP khác nhau (và thống kê)"
+    echo "4. Thoát"
     echo -e "${YELLOW}============================${NC}"
 }
 
@@ -63,6 +64,28 @@ check_ip_range() {
     echo -e "${GREEN}Đã kiểm tra xong dãy IP.${NC}"
     
     # Thống kê ngay sau khi kiểm tra
+    show_stats
+}
+
+# Hàm kiểm tra nhiều IP khác nhau và thống kê
+check_multiple_ips() {
+    echo -e "${YELLOW}Nhập các IP cần kiểm tra (cách nhau bằng dấu cách, ví dụ: 8.8.8.8 1.1.1.1):${NC}"
+    read -p "Danh sách IP: " ip_list
+    echo -e "${GREEN}Đang kiểm tra các IP...${NC}"
+    
+    # Lặp qua từng IP trong danh sách
+    for ip in $ip_list; do
+        check_ip_blacklist "$ip"
+        sleep 1 # Tránh gửi yêu cầu quá nhanh
+    done
+    echo -e "${GREEN}Đã kiểm tra xong các IP.${NC}"
+    
+    # Thống kê ngay sau khi kiểm tra
+    show_stats
+}
+
+# Hàm hiển thị thống kê
+show_stats() {
     echo -e "${YELLOW}=== Thống kê IP bị blacklist ===${NC}"
     if [ -f "blacklist_ips.txt" ]; then
         total=$(wc -l < blacklist_ips.txt)
@@ -78,11 +101,12 @@ check_ip_range() {
 # Vòng lặp chính
 while true; do
     show_menu
-    read -p "Chọn một tùy chọn (1-3): " choice
+    read -p "Chọn một tùy chọn (1-4): " choice
     case $choice in
         1) check_current_ip ;;
         2) check_ip_range ;;
-        3) echo -e "${GREEN}Tạm biệt!${NC}"; exit 0 ;;
+        3) check_multiple_ips ;;
+        4) echo -e "${GREEN}Tạm biệt!${NC}"; exit 0 ;;
         *) echo -e "${RED}Lựa chọn không hợp lệ!${NC}"; sleep 1 ;;
     esac
 done
