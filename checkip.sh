@@ -9,23 +9,23 @@ NC='\033[0m' # No Color
 # Hàm hiển thị menu
 show_menu() {
     clear
-    echo -e "${YELLOW}=== IP & Blacklist Checker Tool ===${NC}"
-    echo "1. Kiểm tra IP"
-    echo "2. Kiểm tra dãy IP (thống kê)"
+    echo -e "${YELLOW}=== TOOL CHECK IP BLACKLIST ===${NC}"
+    echo "1. Kiểm tra một IP"
+    echo "2. Kiểm tra dãy IP(thống kê)"
     echo "3. Kiểm tra nhiều IP khác nhau (thống kê)"
     echo "4. Kiểm tra nhiều dãy IP (thống kê)"
     echo "5. Thoát"
     echo -e "${YELLOW}============================${NC}"
 }
 
-# Hàm kiểm tra IP hiện tại
-check_current_ip() {
-    echo -e "${GREEN}Đang kiểm tra IP hiện tại...${NC}"
-    IP=$(curl -s ifconfig.me)
+# Hàm kiểm tra một IP
+check_single_ip() {
+    echo -e "${YELLOW}Nhập IP cần kiểm tra (ví dụ: 8.8.8.8):${NC}"
+    read -p "IP: " IP
     if [ -z "$IP" ]; then
-        echo -e "${RED}Không thể lấy IP. Vui lòng kiểm tra kết nối mạng!${NC}"
+        echo -e "${RED}Vui lòng nhập một IP hợp lệ!${NC}"
     else
-        echo -e "${GREEN}IP hiện tại của bạn: $IP${NC}"
+        echo -e "${GREEN}Đang kiểm tra IP: $IP${NC}"
         check_ip_blacklist "$IP"
     fi
     read -p "Nhấn Enter để tiếp tục..."
@@ -118,7 +118,7 @@ while true; do
     show_menu
     read -p "Chọn một tùy chọn (1-5): " choice
     case $choice in
-        1) check_current_ip ;;
+        1) check_single_ip ;;
         2) check_ip_range ;;
         3) check_multiple_ips ;;
         4) check_multiple_ranges ;;
