@@ -5,7 +5,7 @@ show_menu() {
     clear
     echo "===== MENU KIỂM TRA IP BLACKLIST ====="
     echo "1. Kiểm tra một IP"
-    echo "2. Kiểm tra nhiều IP (cách nhau bằng khoảng trắng)"
+    echo "2. Kiểm tra nhiều IP"
     echo "3. Kiểm tra một dãy IP"
     echo "4. Kiểm tra nhiều dãy IP"
     echo "5. Thoát"
@@ -28,7 +28,7 @@ validate_ip() {
 check_ip_blacklist() {
     local IP=$1
     BLACKLISTS=(
-        "zen.spamhaus.org"
+        "check.spamhaus.org"
         "bl.spamcop.net"
         "cbl.abuseat.org"
         "dnsbl.sorbs.net"
@@ -42,8 +42,7 @@ check_ip_blacklist() {
     for BL in "${BLACKLISTS[@]}"; do
         RESULT=$(dig +short +timeout=5 "$REVERSED_IP.$BL" 2>/dev/null)
         if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
-            OUTPUT="$OUTPUT\n  - Bị liệt kê trong $BL (Kết quả: $RESULT)"
-            BLACKLISTED_IN="$BLACKLISTED_IN    - $BL\n"
+            OUTPUT="$OUTPUT\n  - Bị liệt kê trong $BL"
             FOUND=1
         fi
     done
@@ -105,12 +104,12 @@ check_multiple_ips() {
         fi
     done
 
-    echo -e "\n===== THỐNG KÊ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
+    echo -e "\n===== THỐNG KÊ CÁC IP BỊ BLACKLIST ====="
     if [ $BLACKLISTED_IPS -eq 0 ]; then
         echo "Không có IP nào bị liệt kê trong blacklist."
     else
         echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
-        echo -e "Danh sách IP bị blacklist ở các trang:\n$BLACKLISTED_DETAILS"
+        echo -e "Danh sách IP bị blacklist:\n$BLACKLISTED_DETAILS"
     fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
@@ -176,12 +175,12 @@ check_ip_range() {
         fi
     done
 
-    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
+    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST ====="
     if [ $BLACKLISTED_IPS -eq 0 ]; then
         echo "Không có IP nào trong dãy bị liệt kê trong blacklist."
     else
         echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
-        echo -e "Danh sách IP bị blacklist ở các trang:\n$BLACKLISTED_DETAILS"
+        echo -e "Danh sách IP bị blacklist:\n$BLACKLISTED_DETAILS"
     fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
@@ -255,12 +254,12 @@ check_multiple_ip_ranges() {
         done
     done
 
-    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
+    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST ====="
     if [ $BLACKLISTED_IPS -eq 0 ]; then
         echo "Không có IP nào trong các dãy bị liệt kê trong blacklist."
     else
         echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
-        echo -e "Danh sách IP bị blacklist ở các trang:\n$BLACKLISTED_DETAILS"
+        echo -e "Danh sách IP bị blacklist:\n$BLACKLISTED_DETAILS"
     fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
