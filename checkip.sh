@@ -7,9 +7,10 @@ show_menu() {
     echo "1. Kiểm tra một IP"
     echo "2. Kiểm tra nhiều IP (cách nhau bằng khoảng trắng)"
     echo "3. Kiểm tra một dãy IP"
-    echo "4. Thoát"
+    echo "4. Kiểm tra nhiều dãy IP"
+    echo "5. Thoát"
     echo "====================================="
-    echo -n "Chọn một tùy chọn (1-4): "
+    echo -n "Chọn một tùy chọn (1-5): "
 }
 
 # Hàm kiểm tra định dạng IP
@@ -168,7 +169,6 @@ check_ip_range() {
 
     echo "Đang kiểm tra $TOTAL_IPS IP trong dãy từ $START_IP đến $END_IP..."
     echo -e "\n===== KẾT QUẢ KIỂM TRA ====="
-    # Kiểm tra tất cả IP và chỉ hiển thị IP bị blacklist
     for IP in "${IPS[@]}"; do
         RESULT=$(check_ip_blacklist "$IP")
         if echo "$RESULT" | grep -q "Bị liệt kê"; then
@@ -180,10 +180,88 @@ check_ip_range() {
         fi
     done
 
-    # Thống kê sau khi kiểm tra xong
     echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
     if [ $BLACKLISTED_IPS -eq 0 ]; then
         echo "Không có IP nào trong dãy bị liệt kê trong blacklist."
+    else
+        echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
+        echo -e "Danh sách IP bị blacklist ở các trang:\n$BLACKLISTED_DETAILS"
+    fi
+    echo -n "Nhấn Enter để quay lại menu..."
+    read
+}
+
+# Hàm kiểm tra nhiều dãy IP
+check_multiple_ip_ranges() {
+    echo "Nhập các dãy IP (mỗi dãy gồm IP bắt đầu và IP kết thúc, cách nhau bằng khoảng trắng, ví dụ: 192.168.1.1 192.168.1.5 10.0.0.1 10.0.0.10)"
+    echo -n "Nhập danh sách dãy IP: "
+    read -r RANGE_LIST
+
+    # Tách chuỗi thành mảng
+    IFS=' ' read -r -a RANGES <<< "$RANGE_LIST"
+    if [ ${#RANGES[@]} -eq 0 ] || [ $(( ${#RANGES[@]} % 2 )) -ne 0 ]; then
+        echo "Danh sách dãy IP không hợp lệ! Phải nhập số chẵn IP (mỗi dãy có IP bắt đầu và kết thúc)."
+        sleep 2
+        return
+    fi
+
+    TOTAL_IPS=0
+    BLACKLISTED_IPS=0
+    BLACKLISTED_DETAILS=""
+
+    echo -e "\n===== KIỂM TRA NHIỀU DÃY IP ====="
+    for ((i=0; i<${#RANGES[@]}; i+=2)); do
+        START_IP=${RANGES[$i]}
+        END_IP=${RANGES[$i+1]}
+
+        if ! validate_ip "$START_IP" || ! validate_ip "$END_IP"; then
+            echo "Dãy IP $START_IP - $END_IP không hợp lệ, bỏ qua."
+            continue
+        fi
+
+        # Tách các octet của IP
+        IFS='.' read -r s1 s2 s3 s4 <<< "$START_IP"
+        IFS='.' read -r e1 e2 e3 e4 <<< "$END_IP"
+
+        # Chuyển thành số để so sánh
+        START_NUM=$((s1 * 256**3 + s2 * 256**2 + s3 * 256 + s4))
+        END_NUM=$((e1 * 256**3 + e2 * 256**2 + e3 * 256 + e4))
+
+        if [ $START_NUM -gt $END_NUM ]; then
+            echo "Dãy IP $START_IP - $END_IP không hợp lệ (IP bắt đầu lớn hơn IP kết thúc), bỏ qua."
+            continue
+        fi
+
+        # Tạo danh sách IP trong dãy
+        IPS=()
+        for ((j = START_NUM; j <= END_NUM; j++)); do
+            OCT1=$((j / 256**3))
+            OCT2=$(((j / 256**2) % 256))
+            OCT3=$(((j / 256) % 256))
+            OCT4=$((j % 256))
+            IP="$OCT1.$OCT2.$OCT3.$OCT4"
+            IPS+=("$IP")
+        done
+
+        ((TOTAL_IPS+=${#IPS[@]}))
+
+        echo "Đang kiểm tra dãy từ $START_IP đến $END_IP (${#IPS[@]} IP)..."
+        echo -e "\n===== KẾT QUẢ KIỂM TRA ====="
+        for IP in "${IPS[@]}"; do
+            RESULT=$(check_ip_blacklist "$IP")
+            if echo "$RESULT" | grep -q "Bị liệt kê"; then
+                echo -e "Kết quả cho IP $IP:"
+                echo -e "$RESULT" | grep -v "^$IP:"
+                BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP:")
+                BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\n$BLACKLISTED_RESULT"
+                ((BLACKLISTED_IPS++))
+            fi
+        done
+    done
+
+    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
+    if [ $BLACKLISTED_IPS -eq 0 ]; then
+        echo "Không có IP nào trong các dãy bị liệt kê trong blacklist."
     else
         echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
         echo -e "Danh sách IP bị blacklist ở các trang:\n$BLACKLISTED_DETAILS"
@@ -214,6 +292,9 @@ while true; do
             check_ip_range
             ;;
         4)
+            check_multiple_ip_ranges
+            ;;
+        5)
             echo "Đang thoát..."
             sleep 1
             exit 0
