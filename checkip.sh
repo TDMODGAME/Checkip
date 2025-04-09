@@ -15,9 +15,10 @@ check_blacklist() {
     echo -n "Nhập địa chỉ IP cần kiểm tra: "
     read IP
 
-    # Kiểm tra định dạng IP cơ bản
-    if ! [[ $IP =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "IP không hợp lệ! Vui lòng nhập lại."
+    # Kiểm tra định dạng IP chính xác hơn
+    if ! echo "$IP" | grep -E "^([0-9]{1,3}\.){3}[0-9]{1,3}$" > /dev/null || \
+       ! echo "$IP" | awk -F'.' '$1<=255 && $2<=255 && $3<=255 && $4<=255' > /dev/null; then
+        echo "IP không hợp lệ! Vui lòng nhập định dạng đúng (ví dụ: 192.168.1.1)."
         sleep 2
         return
     fi
@@ -32,21 +33,34 @@ check_blacklist() {
     )
 
     # Đảo ngược IP
-    REVERSED_IP=$(echo $IP | awk -F'.' '{print $4"."$3"."$2"."$1}')
+    REVERSED_IP=$(echo "$IP" | awk -F'.' '{print $4"."$3"."$2"."$1}')
 
     # Kiểm tra từng blacklist
     echo "Đang kiểm tra IP $IP..."
+    FOUND=0
     for BL in "${BLACKLISTS[@]}"; do
-        RESULT=$(dig +short $REVERSED_IP.$BL)
-        if [ -n "$RESULT" ]; then
-            echo "IP $IP bị liệt kê trong $BL: $RESULT"
+        # Sử dụng dig với timeout để tránh treo
+        RESULT=$(dig +short +timeout=5 "$REVERSED_IP.$BL" 2>/dev/null)
+        if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
+            echo "IP $IP bị liệt kê trong $BL (Kết quả: $RESULT)"
+            FOUND=1
         else
             echo "IP $IP không bị liệt kê trong $BL"
         fi
     done
+
+    if [ $FOUND -eq 0 ]; then
+        echo "Không tìm thấy IP $IP trong bất kỳ blacklist nào."
+    fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
+
+# Kiểm tra xem dig có được cài đặt không
+if ! command -v dig >/dev/null 2>&1; then
+    echo "Lỗi: 'dig' chưa được cài đặt. Vui lòng chạy: pkg install dnsutils"
+    exit 1
+fi
 
 # Vòng lặp chính cho menu
 while true; do
