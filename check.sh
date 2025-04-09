@@ -282,16 +282,45 @@ remove_from_barracuda() {
         return
     fi
 
+    # Nhập thông tin bổ sung
+    echo -n "Nhập email của bạn (bắt buộc để Barracuda xử lý yêu cầu): "
+    read EMAIL
+    if [ -z "$EMAIL" ]; then
+        echo "Email không được để trống!"
+        sleep 2
+        return
+    fi
+    echo -n "Nhập tên của bạn (bắt buộc để Barracuda xử lý yêu cầu): "
+    read NAME
+    if [ -z "$NAME" ]; then
+        echo "Tên không được để trống!"
+        sleep 2
+        return
+    fi
+
     echo "Đang gửi yêu cầu xóa IP $IP khỏi barracudacentral.org..."
-    RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-        --data "ip=$IP&submit=Submit" \
+    # Gửi yêu cầu với các trường đầy đủ và lưu phản hồi
+    RESPONSE=$(curl -s -w "\n%{http_code}" \
+        --data-urlencode "ip=$IP" \
+        --data-urlencode "email=$EMAIL" \
+        --data-urlencode "name=$NAME" \
+        --data-urlencode "submit=Submit" \
         "http://barracudacentral.org/rbl/removal-request")
     
-    if [ "$RESPONSE" -eq 200 ]; then
+    # Tách nội dung và mã trạng thái
+    RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+    # Debug: hiển thị phản hồi để kiểm tra
+    echo "Debug: Phản hồi từ Barracuda: $RESPONSE_BODY"
+    echo "Debug: Mã trạng thái HTTP: $HTTP_CODE"
+
+    if [ "$HTTP_CODE" -eq 200 ] && echo "$RESPONSE_BODY" | grep -q "request has been submitted"; then
         echo "Yêu cầu xóa IP $IP đã được gửi thành công đến barracudacentral.org."
         echo "Lưu ý: Quá trình xử lý có thể mất thời gian, vui lòng kiểm tra lại sau."
     else
-        echo "Gửi yêu cầu thất bại (Mã trạng thái: $RESPONSE). Vui lòng thử lại sau."
+        echo "Gửi yêu cầu thất bại (Mã trạng thái: $HTTP_CODE)."
+        echo "Có thể do thông tin không hợp lệ hoặc Barracuda yêu cầu thêm xác nhận (CAPTCHA). Vui lòng thử lại hoặc truy cập trực tiếp trang web."
     fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
