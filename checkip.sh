@@ -29,6 +29,7 @@ check_ip_blacklist() {
     local IP=$1
     BLACKLISTS=(
         "zen.spamhaus.org"
+        "check.spamhaus.org"
         "bl.spamcop.net"
         "cbl.abuseat.org"
         "dnsbl.sorbs.net"
