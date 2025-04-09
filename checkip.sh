@@ -25,7 +25,7 @@ check_blacklist() {
 
     # Danh sách các blacklist phổ biến
     BLACKLISTS=(
-        "zen.spamhaus.org"
+        "check.spamhaus.org"
         "bl.spamcop.net"
         "cbl.abuseat.org"
         "dnsbl.sorbs.net"
