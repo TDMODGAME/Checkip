@@ -43,7 +43,7 @@ check_ip_blacklist() {
         RESULT=$(dig +short +timeout=5 "$REVERSED_IP.$BL" 2>/dev/null)
         if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
             OUTPUT="$OUTPUT\n  - Bị liệt kê trong $BL (Kết quả: $RESULT)"
-            BLACKLISTED_IN="$BLACKLISTED_IN    - $BL\n"
+          
             FOUND=1
         fi
     done
@@ -176,12 +176,12 @@ check_ip_range() {
         fi
     done
 
-    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
+    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST ====="
     if [ $BLACKLISTED_IPS -eq 0 ]; then
         echo "Không có IP nào trong dãy bị liệt kê trong blacklist."
     else
         echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
-        echo -e "Danh sách IP bị blacklist ở các trang:\n$BLACKLISTED_DETAILS"
+        echo -e "Danh sách IP bị blacklist:\n$BLACKLISTED_DETAILS"
     fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
