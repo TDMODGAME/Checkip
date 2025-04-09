@@ -5,10 +5,11 @@ show_menu() {
     clear
     echo "===== MENU KIỂM TRA IP BLACKLIST ====="
     echo "1. Kiểm tra một IP"
-    echo "2. Kiểm tra nhiều IP"
-    echo "3. Thoát"
+    echo "2. Kiểm tra nhiều IP (cách nhau bằng khoảng trắng)"
+    echo "3. Kiểm tra một dãy IP"
+    echo "4. Thoát"
     echo "====================================="
-    echo -n "Chọn một tùy chọn (1-3): "
+    echo -n "Chọn một tùy chọn (1-4): "
 }
 
 # Hàm kiểm tra định dạng IP
@@ -70,14 +71,12 @@ check_single_ip() {
     read
 }
 
-# Hàm kiểm tra nhiều IP và thống kê các IP bị blacklist
+# Hàm kiểm tra nhiều IP (cách nhau bằng khoảng trắng)
 check_multiple_ips() {
     echo -n "Nhập danh sách IP (cách nhau bằng khoảng trắng, ví dụ: 8.8.8.8 1.2.3.4): "
     read -r IP_LIST
 
-    # Tách chuỗi IP thành mảng
     IFS=' ' read -r -a IPS <<< "$IP_LIST"
-
     if [ ${#IPS[@]} -eq 0 ]; then
         echo "Không có IP nào được nhập!"
         sleep 2
@@ -105,7 +104,77 @@ check_multiple_ips() {
         fi
     done
 
-    # Thống kê các IP bị blacklist
+    echo -e "\n===== THỐNG KÊ CÁC IP BỊ BLACKLIST ====="
+    if [ $BLACKLISTED_IPS -eq 0 ]; then
+        echo "Không có IP nào bị liệt kê trong blacklist."
+    else
+        echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
+        echo -e "Danh sách IP bị blacklist:$BLACKLISTED_DETAILS"
+    fi
+    echo -n "Nhấn Enter để quay lại menu..."
+    read
+}
+
+# Hàm kiểm tra một dãy IP
+check_ip_range() {
+    echo -n "Nhập IP bắt đầu (ví dụ: 192.168.1.1): "
+    read START_IP
+    if ! validate_ip "$START_IP"; then
+        echo "IP bắt đầu không hợp lệ!"
+        sleep 2
+        return
+    fi
+
+    echo -n "Nhập IP kết thúc (ví dụ: 192.168.1.10): "
+    read END_IP
+    if ! validate_ip "$END_IP"; then
+        echo "IP kết thúc không hợp lệ!"
+        sleep 2
+        return
+    fi
+
+    # Tách các octet của IP
+    IFS='.' read -r s1 s2 s3 s4 <<< "$START_IP"
+    IFS='.' read -r e1 e2 e3 e4 <<< "$END_IP"
+
+    # Chuyển thành số để so sánh
+    START_NUM=$((s1 * 256**3 + s2 * 256**2 + s3 * 256 + s4))
+    END_NUM=$((e1 * 256**3 + e2 * 256**2 + e3 * 256 + e4))
+
+    if [ $START_NUM -gt $END_NUM ]; then
+        echo "IP bắt đầu phải nhỏ hơn hoặc bằng IP kết thúc!"
+        sleep 2
+        return
+    fi
+
+    # Tạo danh sách IP trong dãy
+    IPS=()
+    for ((i = START_NUM; i <= END_NUM; i++)); do
+        OCT1=$((i / 256**3))
+        OCT2=$(((i / 256**2) % 256))
+        OCT3=$(((i / 256) % 256))
+        OCT4=$((i % 256))
+        IP="$OCT1.$OCT2.$OCT3.$OCT4"
+        IPS+=("$IP")
+    done
+
+    TOTAL_IPS=${#IPS[@]}
+    BLACKLISTED_IPS=0
+    BLACKLISTED_DETAILS=""
+
+    echo "Đang kiểm tra $TOTAL_IPS IP trong dãy từ $START_IP đến $END_IP..."
+    echo -e "\n===== KẾT QUẢ KIỂM TRA ====="
+    for IP in "${IPS[@]}"; do
+        echo -e "Kết quả cho IP $IP:"
+        RESULT=$(check_ip_blacklist "$IP")
+        echo -e "$RESULT" | grep -v "^$IP:"
+        BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP:")
+        if [ -n "$BLACKLISTED_RESULT" ]; then
+            BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\n$BLACKLISTED_RESULT"
+            ((BLACKLISTED_IPS++))
+        fi
+    done
+
     echo -e "\n===== THỐNG KÊ CÁC IP BỊ BLACKLIST ====="
     if [ $BLACKLISTED_IPS -eq 0 ]; then
         echo "Không có IP nào bị liệt kê trong blacklist."
@@ -136,6 +205,9 @@ while true; do
             check_multiple_ips
             ;;
         3)
+            check_ip_range
+            ;;
+        4)
             echo "Đang thoát..."
             sleep 1
             exit 0
