@@ -260,7 +260,7 @@ check_multiple_ip_ranges() {
     read
 }
 
-# Hàm gửi yêu cầu xóa IP khỏi barracudacentral.org với thông tin cố định
+# Hàm gửi yêu cầu xóa IP khỏi barracudacentral.org với thông tin cố định (không có name)
 remove_from_barracuda() {
     echo -n "Nhập địa chỉ IP cần xóa khỏi blacklist của barracudacentral.org: "
     read IP
@@ -282,18 +282,16 @@ remove_from_barracuda() {
         return
     fi
 
-    # Thông tin cố định
+    # Thông tin cố định (không có name)
     EMAIL="doantt@vntt.com.vn"
-    NAME="Doan TT"
     PHONE="0705056081"
     REASON="My ip is spam mail, i fixed this error, i need support remove blacklist. Many thanks."
 
     echo "Đang gửi yêu cầu xóa IP $IP khỏi barracudacentral.org..."
-    # Gửi yêu cầu với các trường đầy đủ và lưu phản hồi
+    # Gửi yêu cầu với các trường đầy đủ (không có name) và lưu phản hồi
     RESPONSE=$(curl -s -w "\n%{http_code}" \
         --data-urlencode "ip=$IP" \
         --data-urlencode "email=$EMAIL" \
-        --data-urlencode "name=$NAME" \
         --data-urlencode "phone=$PHONE" \
         --data-urlencode "reason=$REASON" \
         --data-urlencode "submit=Submit" \
