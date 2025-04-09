@@ -43,8 +43,7 @@ check_ip_blacklist() {
     for BL in "${BLACKLISTS[@]}"; do
         RESULT=$(dig +short +timeout=5 "$REVERSED_IP.$BL" 2>/dev/null)
         if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
-            OUTPUT="$OUTPUT\n  - Bị liệt kê trong $BL (Kết quả: $RESULT)"
-            BLACKLISTED_IN="$BLACKLISTED_IN    - $BL\n"
+            OUTPUT="$OUTPUT\n  - Bị liệt kê trong $BL"
             FOUND=1
         fi
     done
