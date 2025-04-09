@@ -1,6 +1,4 @@
 #!/data/data/com.termux/files/usr/bin/bash
-
-# Hàm hiển thị menu
 show_menu() {
     clear
     echo "===== MENU KIỂM TRA IP BLACKLIST ====="
@@ -12,8 +10,6 @@ show_menu() {
     echo "====================================="
     echo -n "Chọn một tùy chọn (1-5): "
 }
-
-# Hàm kiểm tra định dạng IP
 validate_ip() {
     local ip=$1
     if echo "$ip" | grep -E "^([0-9]{1,3}\.){3}[0-9]{1,3}$" > /dev/null && \
@@ -23,8 +19,6 @@ validate_ip() {
         return 1
     fi
 }
-
-# Hàm kiểm tra blacklist cho một IP và trả về kết quả
 check_ip_blacklist() {
     local IP=$1
     BLACKLISTS=(
@@ -55,8 +49,6 @@ check_ip_blacklist() {
     fi
     return $FOUND
 }
-
-# Hàm kiểm tra một IP
 check_single_ip() {
     echo -n "Nhập địa chỉ IP cần kiểm tra: "
     read IP
@@ -71,8 +63,6 @@ check_single_ip() {
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
-
-# Hàm kiểm tra nhiều IP (cách nhau bằng khoảng trắng)
 check_multiple_ips() {
     echo -n "Nhập danh sách IP (ví dụ: 8.8.8.8 1.2.3.4): "
     read -r IP_LIST
@@ -115,8 +105,6 @@ check_multiple_ips() {
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
-
-# Hàm kiểm tra một dãy IP
 check_ip_range() {
     echo -n "Nhập IP bắt đầu (ví dụ: 192.168.1.1): "
     read START_IP
@@ -147,8 +135,7 @@ check_ip_range() {
         sleep 2
         return
     fi
-
-    # Tạo danh sách IP trong dãy
+    
     IPS=()
     for ((i = START_NUM; i <= END_NUM; i++)); do
         OCT1=$((i / 256**3))
@@ -187,7 +174,6 @@ check_ip_range() {
     read
 }
 
-# Hàm kiểm tra nhiều dãy IP
 check_multiple_ip_ranges() {
     echo "Nhập các dãy IP (mỗi dãy gồm IP bắt đầu và IP kết thúc, cách nhau bằng khoảng trắng, ví dụ: 192.168.1.1 192.168.1.5 10.0.0.1 10.0.0.10)"
     echo -n "Nhập danh sách dãy IP: "
@@ -215,11 +201,9 @@ check_multiple_ip_ranges() {
             continue
         fi
 
-        # Tách các octet của IP
         IFS='.' read -r s1 s2 s3 s4 <<< "$START_IP"
         IFS='.' read -r e1 e2 e3 e4 <<< "$END_IP"
 
-        # Chuyển thành số để so sánh
         START_NUM=$((s1 * 256**3 + s2 * 256**2 + s3 * 256 + s4))
         END_NUM=$((e1 * 256**3 + e2 * 256**2 + e3 * 256 + e4))
 
@@ -228,7 +212,6 @@ check_multiple_ip_ranges() {
             continue
         fi
 
-        # Tạo danh sách IP trong dãy
         IPS=()
         for ((j = START_NUM; j <= END_NUM; j++)); do
             OCT1=$((j / 256**3))
@@ -266,13 +249,11 @@ check_multiple_ip_ranges() {
     read
 }
 
-# Kiểm tra xem dig có được cài đặt không
 if ! command -v dig >/dev/null 2>&1; then
     echo "Lỗi: 'dig' chưa được cài đặt. Vui lòng chạy: pkg install dnsutils"
     exit 1
 fi
 
-# Vòng lặp chính cho menu
 while true; do
     show_menu
     read choice
