@@ -5,7 +5,7 @@ show_menu() {
     clear
     echo "===== MENU KIỂM TRA IP BLACKLIST ====="
     echo "1. Kiểm tra một IP"
-    echo "2. Kiểm tra nhiều IP (cách nhau bằng khoảng trắng)"
+    echo "2. Kiểm tra nhiều IP"
     echo "3. Thoát"
     echo "====================================="
     echo -n "Chọn một tùy chọn (1-3): "
@@ -22,7 +22,7 @@ validate_ip() {
     fi
 }
 
-# Hàm kiểm tra blacklist cho một IP
+# Hàm kiểm tra blacklist cho một IP và trả về kết quả
 check_ip_blacklist() {
     local IP=$1
     BLACKLISTS=(
@@ -35,17 +35,22 @@ check_ip_blacklist() {
     REVERSED_IP=$(echo "$IP" | awk -F'.' '{print $4"."$3"."$2"."$1}')
     local FOUND=0
     local OUTPUT=""
+    local BLACKLISTED_IN=""
 
     for BL in "${BLACKLISTS[@]}"; do
         RESULT=$(dig +short +timeout=5 "$REVERSED_IP.$BL" 2>/dev/null)
         if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
-            OUTPUT="$OUTPUT\nIP $IP bị liệt kê trong $BL (Kết quả: $RESULT)"
+            OUTPUT="$OUTPUT\n  - Bị liệt kê trong $BL (Kết quả: $RESULT)"
+            BLACKLISTED_IN="$BLACKLISTED_IN\n    - $BL (Kết quả: $RESULT)"
             FOUND=1
         else
-            OUTPUT="$OUTPUT\nIP $IP không bị liệt kê trong $BL"
+            OUTPUT="$OUTPUT\n  - Không bị liệt kê trong $BL"
         fi
     done
     echo -e "$OUTPUT"
+    if [ $FOUND -eq 1 ]; then
+        echo -e "$IP:$BLACKLISTED_IN"
+    fi
     return $FOUND
 }
 
@@ -59,12 +64,13 @@ check_single_ip() {
         return
     fi
     echo "Đang kiểm tra IP $IP..."
+    echo -e "Kết quả cho IP $IP:"
     check_ip_blacklist "$IP"
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
 
-# Hàm kiểm tra nhiều IP và thống kê (tách bằng khoảng trắng)
+# Hàm kiểm tra nhiều IP và thống kê các IP bị blacklist
 check_multiple_ips() {
     echo -n "Nhập danh sách IP (cách nhau bằng khoảng trắng, ví dụ: 8.8.8.8 1.2.3.4): "
     read -r IP_LIST
@@ -80,28 +86,33 @@ check_multiple_ips() {
 
     TOTAL_IPS=${#IPS[@]}
     BLACKLISTED_IPS=0
-    OUTPUT=""
+    BLACKLISTED_DETAILS=""
 
     echo "Đang kiểm tra $TOTAL_IPS IP..."
+    echo -e "\n===== KẾT QUẢ KIỂM TRA ====="
     for IP in "${IPS[@]}"; do
         if ! validate_ip "$IP"; then
-            OUTPUT="$OUTPUT\nIP $IP: Không hợp lệ, bỏ qua."
+            echo "IP $IP: Không hợp lệ, bỏ qua."
             continue
         fi
+        echo -e "Kết quả cho IP $IP:"
         RESULT=$(check_ip_blacklist "$IP")
-        OUTPUT="$OUTPUT\n$RESULT"
-        if check_ip_blacklist "$IP" >/dev/null 2>&1; then
+        echo -e "$RESULT" | grep -v "^$IP:"
+        BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP:")
+        if [ -n "$BLACKLISTED_RESULT" ]; then
+            BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\n$BLACKLISTED_RESULT"
             ((BLACKLISTED_IPS++))
         fi
     done
 
-    # Thống kê
-    echo -e "\n===== THỐNG KÊ ====="
-    echo "Tổng số IP kiểm tra: $TOTAL_IPS"
-    echo "Số IP bị liệt kê trong blacklist: $BLACKLISTED_IPS"
-    echo "Số IP không bị liệt kê: $((TOTAL_IPS - BLACKLISTED_IPS))"
-    echo -e "\n===== CHI TIẾT ====="
-    echo -e "$OUTPUT"
+    # Thống kê các IP bị blacklist
+    echo -e "\n===== THỐNG KÊ CÁC IP BỊ BLACKLIST ====="
+    if [ $BLACKLISTED_IPS -eq 0 ]; then
+        echo "Không có IP nào bị liệt kê trong blacklist."
+    else
+        echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
+        echo -e "Danh sách IP bị blacklist:$BLACKLISTED_DETAILS"
+    fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
