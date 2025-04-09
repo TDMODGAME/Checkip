@@ -177,10 +177,11 @@ check_ip_range() {
 
     echo -e "\n===== THỐNG KÊ CÁC IP BỊ BLACKLIST ====="
     if [ $BLACKLISTED_IPS -eq 0 ]; then
-        echo "Không có IP nào bị liệt kê trong blacklist."
+        echo "Không có IP nào trong dãy bị liệt kê trong blacklist."
     else
         echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
-        echo -e "Danh sách IP bị blacklist:$BLACKLISTED_DETAILS"
+        echo -e "Danh sách IP bị blacklist và các trang:"
+        echo -e "$BLACKLISTED_DETAILS"
     fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
