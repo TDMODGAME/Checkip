@@ -243,7 +243,7 @@ check_multiple_ip_ranges() {
         echo "Không có IP nào trong các dãy bị liệt kê trong blacklist."
     else
         echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
-        echo -e "Danh sách IP bị blacklist:\n$BLACKLISTED_DETAILS"
+        echo -e "Danh sách IP bị blacklist:\n$BL"
     fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
