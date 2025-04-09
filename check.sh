@@ -9,9 +9,10 @@ show_menu() {
     echo "3. Kiểm tra một dãy IP"
     echo "4. Kiểm tra nhiều dãy IP"
     echo "5. Remove blacklist từ barracudacentral.org"
-    echo "6. Thoát"
+    echo "6. Remove blacklist từ spamhaus.org"
+    echo "7. Thoát"
     echo "====================================="
-    echo -n "Chọn một tùy chọn (1-6): "
+    echo -n "Chọn một tùy chọn (1-7): "
 }
 
 # Hàm kiểm tra định dạng IP
@@ -43,7 +44,8 @@ check_ip_blacklist() {
     for BL in "${BLACKLISTS[@]}"; do
         RESULT=$(dig +short +timeout=5 "$REVERSED_IP.$BL" 2>/dev/null)
         if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
-            OUTPUT="$OUTPUT\n  - Bị liệt kê trong $BL "
+            OUTPUT="$OUTPUT\n  - Bị liệt kê trong $BL (Kết quả: $RESULT)"
+            BLACKLISTED_IN="$BLACKLISTED_IN    - $BL\n"
             FOUND=1
         fi
     done
@@ -299,7 +301,7 @@ remove_from_barracuda() {
                 --data-urlencode "phone=$PHONE" \
                 --data-urlencode "reason=$REASON" \
                 --data-urlencode "submit=Submit" \
-                "https://barracudacentral.org/rbl/removal-request/$IP")
+                "http://barracudacentral.org/rbl/removal-request")
             
             # Tách nội dung và mã trạng thái
             RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
@@ -321,6 +323,72 @@ remove_from_barracuda() {
     done
 
     echo -e "\nLưu ý: Nếu yêu cầu thành công, quá trình xử lý của Barracuda có thể mất thời gian. Vui lòng kiểm tra lại sau."
+    echo -n "Nhấn Enter để quay lại menu..."
+    read
+}
+
+# Hàm gửi yêu cầu xóa nhiều IP khỏi spamhaus.org
+remove_from_spamhaus() {
+    echo -n "Nhập danh sách IP cần xóa khỏi blacklist (cách nhau bằng khoảng trắng, ví dụ: 192.168.1.1 8.8.8.8): "
+    read -r IP_LIST
+
+    IFS=' ' read -r -a IPS <<< "$IP_LIST"
+    if [ ${#IPS[@]} -eq 0 ]; then
+        echo "Không có IP nào được nhập!"
+        sleep 2
+        return
+    fi
+
+    TOTAL_IPS=${#IPS[@]}
+    echo "Đang xử lý $TOTAL_IPS IP..."
+
+    # Thông tin cố định
+    EMAIL="doantt@vntt.com.vn"
+    PHONE="0705056081"
+    REASON="My ip is spam mail, i fixed this error, i need support remove blacklist. Many thanks."
+
+    echo -e "\n===== KẾT QUẢ XỬ LÝ ====="
+    for IP in "${IPS[@]}"; do
+        if ! validate_ip "$IP"; then
+            echo "IP $IP: Không hợp lệ, bỏ qua."
+            continue
+        fi
+
+        # Kiểm tra xem IP có bị liệt kê trong zen.spamhaus.org không
+        REVERSED_IP=$(echo "$IP" | awk -F'.' '{print $4"."$3"."$2"."$1}')
+        RESULT=$(dig +short +timeout=5 "$REVERSED_IP.zen.spamhaus.org" 2>/dev/null)
+        if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
+            echo "IP $IP: Bị liệt kê trong spamhaus.org (Kết quả: $RESULT). Đang gửi yêu cầu xóa..."
+
+            # Gửi yêu cầu xóa với các trường cố định
+            RESPONSE=$(curl -s -w "\n%{http_code}" \
+                --data-urlencode "ip=$IP" \
+                --data-urlencode "email=$EMAIL" \
+                --data-urlencode "phone=$PHONE" \
+                --data-urlencode "reason=$REASON" \
+                --data-urlencode "submit=Submit" \
+                "https://www.spamhaus.org/lookup/")
+            
+            # Tách nội dung và mã trạng thái
+            RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+            # Debug: hiển thị phản hồi để kiểm tra
+            echo "Debug: Phản hồi từ Spamhaus cho $IP: $RESPONSE_BODY"
+            echo "Debug: Mã trạng thái HTTP cho $IP: $HTTP_CODE"
+
+            if [ "$HTTP_CODE" -eq 200 ] && echo "$RESPONSE_BODY" | grep -q "request has been submitted"; then
+                echo "IP $IP: Yêu cầu xóa đã được gửi thành công."
+            else
+                echo "IP $IP: Gửi yêu cầu thất bại (Mã trạng thái: $HTTP_CODE)."
+                echo "Có thể do thông tin không hợp lệ hoặc Spamhaus yêu cầu CAPTCHA/hành động thủ công."
+            fi
+        else
+            echo "IP $IP: Không bị liệt kê trong spamhaus.org, bỏ qua."
+        fi
+    done
+
+    echo -e "\nLưu ý: Nếu yêu cầu thành công, quá trình xử lý của Spamhaus có thể mất thời gian. Vui lòng kiểm tra lại sau hoặc truy cập https://www.spamhaus.org/lookup/ để xử lý thủ công nếu cần."
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
@@ -357,6 +425,9 @@ while true; do
             remove_from_barracuda
             ;;
         6)
+            remove_from_spamhaus
+            ;;
+        7)
             echo "Đang thoát..."
             sleep 1
             exit 0
