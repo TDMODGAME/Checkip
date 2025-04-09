@@ -5,7 +5,7 @@ show_menu() {
     clear
     echo "===== MENU KIỂM TRA IP BLACKLIST ====="
     echo "1. Kiểm tra một IP"
-    echo "2. Kiểm tra nhiều IP"
+    echo "2. Kiểm tra nhiều IP (cách nhau bằng khoảng trắng)"
     echo "3. Thoát"
     echo "====================================="
     echo -n "Chọn một tùy chọn (1-3): "
@@ -64,13 +64,13 @@ check_single_ip() {
     read
 }
 
-# Hàm kiểm tra nhiều IP và thống kê
+# Hàm kiểm tra nhiều IP và thống kê (tách bằng khoảng trắng)
 check_multiple_ips() {
-    echo "Nhập danh sách IP (mỗi IP trên một dòng, nhấn Ctrl+D hoặc Ctrl+Z khi xong):"
-    IPS=()
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && IPS+=("$line")
-    done
+    echo -n "Nhập danh sách IP (cách nhau bằng khoảng trắng, ví dụ: 8.8.8.8 1.2.3.4): "
+    read -r IP_LIST
+
+    # Tách chuỗi IP thành mảng
+    IFS=' ' read -r -a IPS <<< "$IP_LIST"
 
     if [ ${#IPS[@]} -eq 0 ]; then
         echo "Không có IP nào được nhập!"
