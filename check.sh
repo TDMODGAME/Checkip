@@ -260,58 +260,68 @@ check_multiple_ip_ranges() {
     read
 }
 
-# Hàm gửi yêu cầu xóa IP khỏi barracudacentral.org với thông tin cố định (không có name)
+# Hàm gửi yêu cầu xóa nhiều IP khỏi barracudacentral.org
 remove_from_barracuda() {
-    echo -n "Nhập địa chỉ IP cần xóa khỏi blacklist của barracudacentral.org: "
-    read IP
-    if ! validate_ip "$IP"; then
-        echo "IP không hợp lệ! Vui lòng nhập định dạng đúng (ví dụ: 192.168.1.1)."
+    echo -n "Nhập danh sách IP cần xóa khỏi blacklist (cách nhau bằng khoảng trắng, ví dụ: 192.168.1.1 8.8.8.8): "
+    read -r IP_LIST
+
+    IFS=' ' read -r -a IPS <<< "$IP_LIST"
+    if [ ${#IPS[@]} -eq 0 ]; then
+        echo "Không có IP nào được nhập!"
         sleep 2
         return
     fi
 
-    # Kiểm tra xem IP có bị liệt kê trong barracudacentral.org không
-    REVERSED_IP=$(echo "$IP" | awk -F'.' '{print $4"."$3"."$2"."$1}')
-    RESULT=$(dig +short +timeout=5 "$REVERSED_IP.b.barracudacentral.org" 2>/dev/null)
-    if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
-        echo "IP $IP hiện đang bị liệt kê trong barracudacentral.org (Kết quả: $RESULT)."
-    else
-        echo "IP $IP không bị liệt kê trong barracudacentral.org. Không cần gửi yêu cầu xóa."
-        echo -n "Nhấn Enter để quay lại menu..."
-        read
-        return
-    fi
+    TOTAL_IPS=${#IPS[@]}
+    echo "Đang xử lý $TOTAL_IPS IP..."
 
-    # Thông tin cố định (không có name)
+    # Thông tin cố định
     EMAIL="doantt@vntt.com.vn"
     PHONE="0705056081"
     REASON="My ip is spam mail, i fixed this error, i need support remove blacklist. Many thanks."
 
-    echo "Đang gửi yêu cầu xóa IP $IP khỏi barracudacentral.org..."
-    # Gửi yêu cầu với các trường đầy đủ (không có name) và lưu phản hồi
-    RESPONSE=$(curl -s -w "\n%{http_code}" \
-        --data-urlencode "ip=$IP" \
-        --data-urlencode "email=$EMAIL" \
-        --data-urlencode "phone=$PHONE" \
-        --data-urlencode "reason=$REASON" \
-        --data-urlencode "submit=Submit" \
-        "https://barracudacentral.org/rbl/removal-request/$IP")
-    
-    # Tách nội dung và mã trạng thái
-    RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
-    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    echo -e "\n===== KẾT QUẢ XỬ LÝ ====="
+    for IP in "${IPS[@]}"; do
+        if ! validate_ip "$IP"; then
+            echo "IP $IP: Không hợp lệ, bỏ qua."
+            continue
+        fi
 
-    # Debug: hiển thị phản hồi để kiểm tra
-    echo "Debug: Phản hồi từ Barracuda: $RESPONSE_BODY"
-    echo "Debug: Mã trạng thái HTTP: $HTTP_CODE"
+        # Kiểm tra xem IP có bị liệt kê trong barracudacentral.org không
+        REVERSED_IP=$(echo "$IP" | awk -F'.' '{print $4"."$3"."$2"."$1}')
+        RESULT=$(dig +short +timeout=5 "$REVERSED_IP.b.barracudacentral.org" 2>/dev/null)
+        if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
+            echo "IP $IP: Bị liệt kê trong barracudacentral.org (Kết quả: $RESULT). Đang gửi yêu cầu xóa..."
 
-    if [ "$HTTP_CODE" -eq 200 ] && echo "$RESPONSE_BODY" | grep -q "request has been submitted"; then
-        echo "Yêu cầu xóa IP $IP đã được gửi thành công đến barracudacentral.org."
-        echo "Lưu ý: Quá trình xử lý có thể mất thời gian, vui lòng kiểm tra lại sau."
-    else
-        echo "Gửi yêu cầu thất bại (Mã trạng thái: $HTTP_CODE)."
-        echo "Có thể do thông tin không hợp lệ hoặc Barracuda yêu cầu thêm xác nhận (CAPTCHA). Vui lòng thử lại hoặc truy cập trực tiếp trang web."
-    fi
+            # Gửi yêu cầu xóa với các trường cố định
+            RESPONSE=$(curl -s -w "\n%{http_code}" \
+                --data-urlencode "ip=$IP" \
+                --data-urlencode "email=$EMAIL" \
+                --data-urlencode "phone=$PHONE" \
+                --data-urlencode "reason=$REASON" \
+                --data-urlencode "submit=Submit" \
+                "http://barracudacentral.org/rbl/removal-request")
+            
+            # Tách nội dung và mã trạng thái
+            RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+            # Debug: hiển thị phản hồi để kiểm tra
+            echo "Debug: Phản hồi từ Barracuda cho $IP: $RESPONSE_BODY"
+            echo "Debug: Mã trạng thái HTTP cho $IP: $HTTP_CODE"
+
+            if [ "$HTTP_CODE" -eq 200 ] && echo "$RESPONSE_BODY" | grep -q "request has been submitted"; then
+                echo "IP $IP: Yêu cầu xóa đã được gửi thành công."
+            else
+                echo "IP $IP: Gửi yêu cầu thất bại (Mã trạng thái: $HTTP_CODE)."
+                echo "Có thể do thông tin không hợp lệ hoặc Barracuda yêu cầu CAPTCHA."
+            fi
+        else
+            echo "IP $IP: Không bị liệt kê trong barracudacentral.org, bỏ qua."
+        fi
+    done
+
+    echo -e "\nLưu ý: Nếu yêu cầu thành công, quá trình xử lý của Barracuda có thể mất thời gian. Vui lòng kiểm tra lại sau."
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
