@@ -40,10 +40,7 @@ check_ip_blacklist() {
     local BLACKLISTED_IN=""
 
     for BL in "${BLACKLISTS[@]}"; do
-        # Debug: hiển thị truy vấn
-        echo "Debug: Truy vấn $REVERSED_IP.$BL" >&2
         RESULT=$(dig +short +timeout=5 "$REVERSED_IP.$BL" 2>/dev/null)
-        echo "Debug: Kết quả = $RESULT" >&2
         if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
             OUTPUT="$OUTPUT\n  - Bị liệt kê trong $BL (Kết quả: $RESULT)"
             BLACKLISTED_IN="$BLACKLISTED_IN    - $BL\n"
@@ -108,7 +105,7 @@ check_multiple_ips() {
         fi
     done
 
-    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
+    echo -e "\n===== THỐNG KÊ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
     if [ $BLACKLISTED_IPS -eq 0 ]; then
         echo "Không có IP nào bị liệt kê trong blacklist."
     else
