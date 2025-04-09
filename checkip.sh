@@ -4,26 +4,27 @@
 show_menu() {
     clear
     echo "===== MENU KIỂM TRA IP BLACKLIST ====="
-    echo "1. Kiểm tra IP trong blacklist"
-    echo "2. Thoát"
+    echo "1. Kiểm tra một IP"
+    echo "2. Kiểm tra nhiều IP"
+    echo "3. Thoát"
     echo "====================================="
-    echo -n "Chọn một tùy chọn (1-2): "
+    echo -n "Chọn một tùy chọn (1-3): "
 }
 
-# Hàm kiểm tra IP blacklist
-check_blacklist() {
-    echo -n "Nhập địa chỉ IP cần kiểm tra: "
-    read IP
-
-    # Kiểm tra định dạng IP chính xác hơn
-    if ! echo "$IP" | grep -E "^([0-9]{1,3}\.){3}[0-9]{1,3}$" > /dev/null || \
-       ! echo "$IP" | awk -F'.' '$1<=255 && $2<=255 && $3<=255 && $4<=255' > /dev/null; then
-        echo "IP không hợp lệ! Vui lòng nhập định dạng đúng (ví dụ: 192.168.1.1)."
-        sleep 2
-        return
+# Hàm kiểm tra định dạng IP
+validate_ip() {
+    local ip=$1
+    if echo "$ip" | grep -E "^([0-9]{1,3}\.){3}[0-9]{1,3}$" > /dev/null && \
+       echo "$ip" | awk -F'.' '$1<=255 && $2<=255 && $3<=255 && $4<=255' > /dev/null; then
+        return 0
+    else
+        return 1
     fi
+}
 
-    # Danh sách các blacklist phổ biến
+# Hàm kiểm tra blacklist cho một IP
+check_ip_blacklist() {
+    local IP=$1
     BLACKLISTS=(
         "zen.spamhaus.org"
         "bl.spamcop.net"
@@ -31,27 +32,76 @@ check_blacklist() {
         "dnsbl.sorbs.net"
         "b.barracudacentral.org"
     )
-
-    # Đảo ngược IP
     REVERSED_IP=$(echo "$IP" | awk -F'.' '{print $4"."$3"."$2"."$1}')
+    local FOUND=0
+    local OUTPUT=""
 
-    # Kiểm tra từng blacklist
-    echo "Đang kiểm tra IP $IP..."
-    FOUND=0
     for BL in "${BLACKLISTS[@]}"; do
-        # Sử dụng dig với timeout để tránh treo
         RESULT=$(dig +short +timeout=5 "$REVERSED_IP.$BL" 2>/dev/null)
         if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
-            echo "IP $IP bị liệt kê trong $BL (Kết quả: $RESULT)"
+            OUTPUT="$OUTPUT\nIP $IP bị liệt kê trong $BL (Kết quả: $RESULT)"
             FOUND=1
         else
-            echo "IP $IP không bị liệt kê trong $BL"
+            OUTPUT="$OUTPUT\nIP $IP không bị liệt kê trong $BL"
+        fi
+    done
+    echo -e "$OUTPUT"
+    return $FOUND
+}
+
+# Hàm kiểm tra một IP
+check_single_ip() {
+    echo -n "Nhập địa chỉ IP cần kiểm tra: "
+    read IP
+    if ! validate_ip "$IP"; then
+        echo "IP không hợp lệ! Vui lòng nhập định dạng đúng (ví dụ: 192.168.1.1)."
+        sleep 2
+        return
+    fi
+    echo "Đang kiểm tra IP $IP..."
+    check_ip_blacklist "$IP"
+    echo -n "Nhấn Enter để quay lại menu..."
+    read
+}
+
+# Hàm kiểm tra nhiều IP và thống kê
+check_multiple_ips() {
+    echo "Nhập danh sách IP (mỗi IP trên một dòng, nhấn Ctrl+D hoặc Ctrl+Z khi xong):"
+    IPS=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && IPS+=("$line")
+    done
+
+    if [ ${#IPS[@]} -eq 0 ]; then
+        echo "Không có IP nào được nhập!"
+        sleep 2
+        return
+    fi
+
+    TOTAL_IPS=${#IPS[@]}
+    BLACKLISTED_IPS=0
+    OUTPUT=""
+
+    echo "Đang kiểm tra $TOTAL_IPS IP..."
+    for IP in "${IPS[@]}"; do
+        if ! validate_ip "$IP"; then
+            OUTPUT="$OUTPUT\nIP $IP: Không hợp lệ, bỏ qua."
+            continue
+        fi
+        RESULT=$(check_ip_blacklist "$IP")
+        OUTPUT="$OUTPUT\n$RESULT"
+        if check_ip_blacklist "$IP" >/dev/null 2>&1; then
+            ((BLACKLISTED_IPS++))
         fi
     done
 
-    if [ $FOUND -eq 0 ]; then
-        echo "Không tìm thấy IP $IP trong bất kỳ blacklist nào."
-    fi
+    # Thống kê
+    echo -e "\n===== THỐNG KÊ ====="
+    echo "Tổng số IP kiểm tra: $TOTAL_IPS"
+    echo "Số IP bị liệt kê trong blacklist: $BLACKLISTED_IPS"
+    echo "Số IP không bị liệt kê: $((TOTAL_IPS - BLACKLISTED_IPS))"
+    echo -e "\n===== CHI TIẾT ====="
+    echo -e "$OUTPUT"
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
@@ -69,9 +119,12 @@ while true; do
 
     case $choice in
         1)
-            check_blacklist
+            check_single_ip
             ;;
         2)
+            check_multiple_ips
+            ;;
+        3)
             echo "Đang thoát..."
             sleep 1
             exit 0
