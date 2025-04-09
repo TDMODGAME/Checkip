@@ -8,7 +8,7 @@ show_menu() {
     echo "2. Kiểm tra nhiều IP"
     echo "3. Kiểm tra một dãy IP"
     echo "4. Kiểm tra nhiều dãy IP"
-    echo "5. Thống kê và lưu file"
+    echo "5. Remove blacklist từ barracudacentral.org"
     echo "6. Thoát"
     echo "====================================="
     echo -n "Chọn một tùy chọn (1-6): "
@@ -25,12 +25,7 @@ validate_ip() {
     fi
 }
 
-# Biến toàn cục để lưu thống kê
-TOTAL_CHECKED_IPS=0
-BLACKLISTED_IPS=0
-declare -A BLACKLISTED_DETAILS
-
-# Hàm kiểm tra blacklist cho một IP và cập nhật thống kê
+# Hàm kiểm tra blacklist cho một IP và trả về kết quả
 check_ip_blacklist() {
     local IP=$1
     BLACKLISTS=(
@@ -56,12 +51,9 @@ check_ip_blacklist() {
     if [ $FOUND -eq 1 ]; then
         echo -e "$OUTPUT"
         echo -e "$IP:\n$BLACKLISTED_IN"
-        ((BLACKLISTED_IPS++))
-        BLACKLISTED_DETAILS["$IP"]="$BLACKLISTED_IN"
     else
         echo "."
     fi
-    ((TOTAL_CHECKED_IPS++))
     return $FOUND
 }
 
@@ -94,6 +86,9 @@ check_multiple_ips() {
     fi
 
     TOTAL_IPS=${#IPS[@]}
+    BLACKLISTED_IPS=0
+    BLACKLISTED_DETAILS=""
+
     echo "Đang kiểm tra $TOTAL_IPS IP..."
     echo -e "\n===== KẾT QUẢ KIỂM TRA ====="
     for IP in "${IPS[@]}"; do
@@ -102,8 +97,22 @@ check_multiple_ips() {
             continue
         fi
         echo -n "Kết quả cho IP $IP: "
-        check_ip_blacklist "$IP" | grep -v "^$IP:"
+        RESULT=$(check_ip_blacklist "$IP")
+        echo -e "$RESULT" | grep -v "^$IP:"
+        BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP:")
+        if [ -n "$BLACKLISTED_RESULT" ]; then
+            BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\n$BLACKLISTED_RESULT"
+            ((BLACKLISTED_IPS++))
+        fi
     done
+
+    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
+    if [ $BLACKLISTED_IPS -eq 0 ]; then
+        echo "Không có IP nào bị liệt kê trong blacklist."
+    else
+        echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
+        echo -e "Danh sách IP bị blacklist ở các trang:\n$BLACKLISTED_DETAILS"
+    fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
@@ -149,12 +158,29 @@ check_ip_range() {
     done
 
     TOTAL_IPS=${#IPS[@]}
+    BLACKLISTED_IPS=0
+    BLACKLISTED_DETAILS=""
+
     echo "Đang kiểm tra $TOTAL_IPS IP trong dãy từ $START_IP đến $END_IP..."
     echo -e "\n===== KẾT QUẢ KIỂM TRA ====="
     for IP in "${IPS[@]}"; do
         echo -n "Kết quả cho IP $IP: "
-        check_ip_blacklist "$IP" | grep -v "^$IP:"
+        RESULT=$(check_ip_blacklist "$IP")
+        echo -e "$RESULT" | grep -v "^$IP:"
+        BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP:")
+        if [ -n "$BLACKLISTED_RESULT" ]; then
+            BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\n$BLACKLISTED_RESULT"
+            ((BLACKLISTED_IPS++))
+        fi
     done
+
+    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
+    if [ $BLACKLISTED_IPS -eq 0 ]; then
+        echo "Không có IP nào trong dãy bị liệt kê trong blacklist."
+    else
+        echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
+        echo -e "Danh sách IP bị blacklist ở các trang:\n$BLACKLISTED_DETAILS"
+    fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
@@ -171,6 +197,10 @@ check_multiple_ip_ranges() {
         sleep 2
         return
     fi
+
+    TOTAL_IPS=0
+    BLACKLISTED_IPS=0
+    BLACKLISTED_DETAILS=""
 
     echo -e "\n===== KIỂM TRA NHIỀU DÃY IP ====="
     for ((i=0; i<${#RANGES[@]}; i+=2)); do
@@ -203,76 +233,77 @@ check_multiple_ip_ranges() {
             IPS+=("$IP")
         done
 
+        ((TOTAL_IPS+=${#IPS[@]}))
+
         echo "Đang kiểm tra dãy từ $START_IP đến $END_IP (${#IPS[@]} IP)..."
         echo -e "\n===== KẾT QUẢ KIỂM TRA ====="
         for IP in "${IPS[@]}"; do
             echo -n "Kết quả cho IP $IP: "
-            check_ip_blacklist "$IP" | grep -v "^$IP:"
+            RESULT=$(check_ip_blacklist "$IP")
+            echo -e "$RESULT" | grep -v "^$IP:"
+            BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP:")
+            if [ -n "$BLACKLISTED_RESULT" ]; then
+                BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\n$BLACKLISTED_RESULT"
+                ((BLACKLISTED_IPS++))
+            fi
         done
     done
+
+    echo -e "\n===== THỐNG KẾ CÁC IP BỊ BLACKLIST Ở TRANG BLACKLIST NÀO ====="
+    if [ $BLACKLISTED_IPS -eq 0 ]; then
+        echo "Không có IP nào trong các dãy bị liệt kê trong blacklist."
+    else
+        echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
+        echo -e "Danh sách IP bị blacklist ở các trang:\n$BLACKLISTED_DETAILS"
+    fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
 
-# Hàm thống kê và lưu file
-show_statistics() {
-    clear
-    echo "===== THỐNG KẾ IP ĐÃ KIỂM TRA ====="
-    echo "Tổng số IP đã kiểm tra: $TOTAL_CHECKED_IPS"
-    echo "Tổng số IP bị blacklist: $BLACKLISTED_IPS"
-    if [ $BLACKLISTED_IPS -gt 0 ]; then
-        echo -e "\nDanh sách IP bị blacklist ở các trang:"
-        for IP in "${!BLACKLISTED_DETAILS[@]}"; do
-            echo -e "$IP:\n${BLACKLISTED_DETAILS[$IP]}"
-        done
-    else
-        echo "Không có IP nào bị liệt kê trong blacklist."
+# Hàm gửi yêu cầu xóa IP khỏi barracudacentral.org
+remove_from_barracuda() {
+    echo -n "Nhập địa chỉ IP cần xóa khỏi blacklist của barracudacentral.org: "
+    read IP
+    if ! validate_ip "$IP"; then
+        echo "IP không hợp lệ! Vui lòng nhập định dạng đúng (ví dụ: 192.168.1.1)."
+        sleep 2
+        return
     fi
 
-    # Chọn đường dẫn file
-    echo -n "Nhập đường dẫn file để lưu thống kê (nhấn Enter để dùng mặc định): "
-    read FILE_PATH
-    if [ -z "$FILE_PATH" ]; then
-        STATS_FILE="blacklist_stats_$(date +%Y%m%d_%H%M%S).txt"
+    # Kiểm tra xem IP có bị liệt kê trong barracudacentral.org không
+    REVERSED_IP=$(echo "$IP" | awk -F'.' '{print $4"."$3"."$2"."$1}')
+    RESULT=$(dig +short +timeout=5 "$REVERSED_IP.b.barracudacentral.org" 2>/dev/null)
+    if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
+        echo "IP $IP hiện đang bị liệt kê trong barracudacentral.org (Kết quả: $RESULT)."
     else
-        # Kiểm tra xem thư mục có tồn tại không
-        DIR=$(dirname "$FILE_PATH")
-        if [ ! -d "$DIR" ]; then
-            echo "Thư mục $DIR không tồn tại, sử dụng đường dẫn mặc định."
-            STATS_FILE="blacklist_stats_$(date +%Y%m%d_%H%M%S).txt"
-        else
-            # Nếu nhập đường dẫn là thư mục, thêm tên file mặc định
-            if [ -d "$FILE_PATH" ]; then
-                STATS_FILE="$FILE_PATH/blacklist_stats_$(date +%Y%m%d_%H%M%S).txt"
-            else
-                STATS_FILE="$FILE_PATH"
-            fi
-        fi
+        echo "IP $IP không bị liệt kê trong barracudacentral.org. Không cần gửi yêu cầu xóa."
+        echo -n "Nhấn Enter để quay lại menu..."
+        read
+        return
     fi
 
-    # Lưu vào file
-    {
-        echo "THỐNG KẾ IP BLACKLIST - $(date '+%Y-%m-%d %H:%M:%S')"
-        echo "====================================="
-        echo "Tổng số IP đã kiểm tra: $TOTAL_CHECKED_IPS"
-        echo "Tổng số IP bị blacklist: $BLACKLISTED_IPS"
-        if [ $BLACKLISTED_IPS -gt 0 ]; then
-            echo -e "\nDanh sách IP bị blacklist ở các trang:"
-            for IP in "${!BLACKLISTED_DETAILS[@]}"; do
-                echo -e "$IP:\n${BLACKLISTED_DETAILS[$IP]}"
-            done
-        else
-            echo "Không có IP nào bị liệt kê trong blacklist."
-        fi
-    } > "$STATS_FILE"
-    echo -e "\nĐã lưu thống kê vào file: $STATS_FILE"
+    echo "Đang gửi yêu cầu xóa IP $IP khỏi barracudacentral.org..."
+    RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+        --data "ip=$IP&submit=Submit" \
+        "http://barracudacentral.org/rbl/removal-request")
+    
+    if [ "$RESPONSE" -eq 200 ]; then
+        echo "Yêu cầu xóa IP $IP đã được gửi thành công đến barracudacentral.org."
+        echo "Lưu ý: Quá trình xử lý có thể mất thời gian, vui lòng kiểm tra lại sau."
+    else
+        echo "Gửi yêu cầu thất bại (Mã trạng thái: $RESPONSE). Vui lòng thử lại sau."
+    fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
 
-# Kiểm tra xem dig có được cài đặt không
+# Kiểm tra xem dig và curl có được cài đặt không
 if ! command -v dig >/dev/null 2>&1; then
     echo "Lỗi: 'dig' chưa được cài đặt. Vui lòng chạy: pkg install dnsutils"
+    exit 1
+fi
+if ! command -v curl >/dev/null 2>&1; then
+    echo "Lỗi: 'curl' chưa được cài đặt. Vui lòng chạy: pkg install curl"
     exit 1
 fi
 
@@ -295,7 +326,7 @@ while true; do
             check_multiple_ip_ranges
             ;;
         5)
-            show_statistics
+            remove_from_barracuda
             ;;
         6)
             echo "Đang thoát..."
