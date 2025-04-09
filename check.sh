@@ -300,7 +300,7 @@ remove_from_barracuda() {
                 --data-urlencode "phone=$PHONE" \
                 --data-urlencode "reason=$REASON" \
                 --data-urlencode "submit=Submit" \
-                "https://barracudacentral.org/rbl/removal-request")
+                "https://barracudacentral.org/rbl/removal-request/$IP")
             
             # Tách nội dung và mã trạng thái
             RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
