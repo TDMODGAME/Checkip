@@ -46,8 +46,7 @@ check_ip_blacklist() {
     for BL in "${BLACKLISTS[@]}"; do
         RESULT=$(dig +short +timeout=5 "$REVERSED_IP.$BL" 2>/dev/null)
         if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
-            OUTPUT="$OUTPUT\n  - Bị liệt kê trong $BL"
-            BLACKLISTED_IN="$BLACKLISTED_IN\n  - $BL"
+            OUTPUT="$OUTPUT  - Bị liệt kê trong $BL"
             FOUND=1
         fi
     done
@@ -55,7 +54,7 @@ check_ip_blacklist() {
         echo -e "$OUTPUT"
         echo -e "$IP:$BLACKLISTED_IN"
     else
-        echo "IP $IP: Không bị liệt kê trong blacklist."
+        echo "√ Không bị Blacklist"
     fi
     return $FOUND
 }
@@ -70,8 +69,8 @@ check_single_ip() {
         return
     fi
     echo "Đang kiểm tra IP $IP..."
-    echo -e "Kết quả cho IP $IP:"
-    check_ip_blacklist "$IP" | grep -v "^$IP:"
+    echo -n "Kết quả cho IP $IP:"
+    check_ip_blacklist "$IP" | grep -v "^$IP"
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
@@ -101,10 +100,10 @@ check_multiple_ips() {
         fi
         echo -n "Kết quả cho IP $IP: "
         RESULT=$(check_ip_blacklist "$IP")
-        echo -e "$RESULT" | grep -v "^$IP:"
-        BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP:")
+        echo -e "$RESULT" | grep -v "^$IP"
+        BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP")
         if [ -n "$BLACKLISTED_RESULT" ]; then
-            BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\n$BLACKLISTED_RESULT"
+            BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS \n$RESULT" 
             ((BLACKLISTED_IPS++))
         fi
     done
@@ -169,10 +168,10 @@ check_ip_range() {
     for IP in "${IPS[@]}"; do
         echo -n "Kết quả cho IP $IP: "
         RESULT=$(check_ip_blacklist "$IP")
-        echo -e "$RESULT" | grep -v "^$IP:"
-        BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP:")
+        echo -e "$RESULT" | grep -v "^$IP"
+        BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP")
         if [ -n "$BLACKLISTED_RESULT" ]; then
-            BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\n$BLACKLISTED_RESULT"
+            BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS \n$RESULT" 
             ((BLACKLISTED_IPS++))
         fi
     done
@@ -182,7 +181,7 @@ check_ip_range() {
         echo "Không có IP nào trong dãy bị liệt kê trong blacklist."
     else
         echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
-        echo -e "Danh sách IP bị blacklist:\n$BLACKLISTED_DETAILS"
+        echo -e "Danh sách IP bị blacklist:$BLACKLISTED_DETAILS"
     fi
     echo -n "Nhấn Enter để quay lại menu..."
     read
@@ -241,12 +240,12 @@ check_multiple_ip_ranges() {
         echo "Đang kiểm tra dãy từ $START_IP đến $END_IP (${#IPS[@]} IP)..."
         echo -e "\n===== KẾT QUẢ KIỂM TRA ====="
         for IP in "${IPS[@]}"; do
-            echo -n "Kết quả cho IP $IP: "
+            echo -e "Kết quả cho IP $IP: "
             RESULT=$(check_ip_blacklist "$IP")
-            echo -e "$RESULT" | grep -v "^$IP:"
-            BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP:")
+            echo -e "$RESULT" | grep -v "^$IP"
+            BLACKLISTED_RESULT=$(echo -e "$RESULT" | grep "^$IP")
             if [ -n "$BLACKLISTED_RESULT" ]; then
-                BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\n$BLACKLISTED_RESULT"
+                BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS \n$RESULT" 
                 ((BLACKLISTED_IPS++))
             fi
         done
@@ -320,7 +319,6 @@ remove_from_barracuda() {
         fi
     done
 
-    echo -e "\nLưu ý: Nếu yêu cầu thành công, quá trình xử lý của Barracuda có thể mất thời gian. Vui lòng kiểm tra lại sau."
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
@@ -418,9 +416,7 @@ remove_ip_range_barracuda() {
     else
         echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
         echo -e "Danh sách IP bị blacklist:\n$BLACKLISTED_DETAILS"
-        echo "Số yêu cầu xóa thành công: $SUCCESSFUL_REQUESTS / $BLACKLISTED_IPS"
     fi
-    echo -e "\nLưu ý: Nếu yêu cầu thành công, quá trình xử lý của Barracuda có thể mất thời gian. Vui lòng kiểm tra lại sau."
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
