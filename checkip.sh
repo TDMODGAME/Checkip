@@ -9,7 +9,7 @@ show_menu() {
     echo "3. Kiểm tra một dãy IP"
     echo "4. Kiểm tra nhiều dãy IP"
     echo "5. Xóa IP blacklist khỏi barracudacentral.org"
-    echo "6. Xóa dãy IP khỏi barracudacentral.org"
+    echo "6. Xóa dãy IP blacklist khỏi barracudacentral.org"
     echo "7. Thoát"
     echo "====================================="
     echo -n "Chọn một tùy chọn (1-7): "
