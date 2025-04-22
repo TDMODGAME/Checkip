@@ -261,7 +261,7 @@ check_multiple_ip_ranges() {
     read
 }
 
-# Hàm gửi yêu cầu xóa nhiều IP khỏi barr担保acentral.org
+# Hàm gửi yêu cầu xóa nhiều IP khỏi barracudacentral.org
 remove_from_barracuda() {
     echo -n "Nhập danh sách IP cần xóa khỏi blacklist (cách nhau bằng khoảng trắng, ví dụ: 192.168.1.1 8.8.8.8): "
     read -r IP_LIST
@@ -292,7 +292,8 @@ remove_from_barracuda() {
         REVERSED_IP=$(echo "$IP" | awk -F'.' '{print $4"."$3"."$2"."$1}')
         RESULT=$(dig +short +timeout=5 "$REVERSED_IP.b.barracudacentral.org" 2>/dev/null)
         if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
-            echo "IP $IP: Bị liệt kê trong barracudacentral.org (Kết quả: $RESULT). Đang gửi yêu cầu xóa..."
+            echo "IP $IP: Bị liệt kê trong barracudacentral.org."
+            echo "Đang gửi yêu cầu xóa..."
 
             # Gửi yêu cầu xóa với các trường cố định
             RESPONSE=$(curl -s -w "\n%{http_code}" \
