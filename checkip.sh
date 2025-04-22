@@ -8,7 +8,7 @@ show_menu() {
     echo "2. Kiểm tra nhiều IP"
     echo "3. Kiểm tra một dãy IP"
     echo "4. Kiểm tra nhiều dãy IP"
-    echo "5. Remove blacklist từ barracudacentral.org"
+    echo "5. Xóa IP blacklist khỏi barracudacentral.org"
     echo "6. Xóa dãy IP khỏi barracudacentral.org"
     echo "7. Thoát"
     echo "====================================="
