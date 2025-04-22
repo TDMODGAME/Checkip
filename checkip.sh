@@ -10,9 +10,11 @@ show_menu() {
     echo "4. Kiểm tra nhiều dãy IP"
     echo "5. Xóa IP blacklist khỏi barracudacentral.org"
     echo "6. Xóa dãy IP blacklist khỏi barracudacentral.org"
-    echo "7. Thoát"
+    echo "7. Xóa IP blacklist khỏi spamcop.net"
+    echo "8. Xóa dãy IP blacklist khỏi spamcop.net"
+    echo "9. Thoát"
     echo "====================================="
-    echo -n "Chọn một tùy chọn (1-7): "
+    echo -n "Chọn một tùy chọn (1-9): "
 }
 
 # Hàm kiểm tra định dạng IP
@@ -53,7 +55,7 @@ check_ip_blacklist() {
         echo -e "$OUTPUT"
         echo -e "$IP:$BLACKLISTED_IN"
     else
-        echo "."
+        echo "IP $IP: Không bị liệt kê trong blacklist."
     fi
     return $FOUND
 }
@@ -314,7 +316,7 @@ remove_from_barracuda() {
                 echo "Yêu cầu xóa đã được gửi thành công."
             fi
         else
-            echo "IP $IP: ."
+            echo "IP $IP: Không bị liệt kê trong barracudacentral.org."
         fi
     done
 
@@ -406,7 +408,7 @@ remove_ip_range_barracuda() {
                 echo "Yêu cầu xóa đã được gửi thành công."
             fi
         else
-            echo "IP $IP: ."
+            echo "IP $IP: Không bị liệt kê trong barracudacentral.org."
         fi
     done
 
@@ -419,6 +421,140 @@ remove_ip_range_barracuda() {
         echo "Số yêu cầu xóa thành công: $SUCCESSFUL_REQUESTS / $BLACKLISTED_IPS"
     fi
     echo -e "\nLưu ý: Nếu yêu cầu thành công, quá trình xử lý của Barracuda có thể mất thời gian. Vui lòng kiểm tra lại sau."
+    echo -n "Nhấn Enter để quay lại menu..."
+    read
+}
+
+# Hàm gửi yêu cầu xóa nhiều IP khỏi spamcop.net
+remove_from_spamcop() {
+    echo -n "Nhập danh sách IP cần xóa khỏi blacklist (cách nhau bằng khoảng trắng, ví dụ: 192.168.1.1 8.8.8.8): "
+    read -r IP_LIST
+
+    IFS=' ' read -r -a IPS <<< "$IP_LIST"
+    if [ ${#IPS[@]} -eq 0 ]; then
+        echo "Không có IP nào được nhập!"
+        sleep 2
+        return
+    fi
+
+    TOTAL_IPS=${#IPS[@]}
+    BLACKLISTED_IPS=0
+    BLACKLISTED_DETAILS=""
+    MAX_IPS=65536  # Giới hạn số lượng IP tối đa trong một dãy
+
+    echo "Đang xử lý $TOTAL_IPS IP..."
+    echo -e "\n===== KẾT QUẢ XỬ LÝ ====="
+    for IP in "${IPS[@]}"; do
+        if ! validate_ip "$IP"; then
+            echo "IP $IP: Không hợp lệ, bỏ qua."
+            continue
+        fi
+
+        # Kiểm tra xem IP có bị liệt kê trong bl.spamcop.net không
+        REVERSED_IP=$(echo "$IP" | awk -F'.' '{print $4"."$3"."$2"."$1}')
+        RESULT=$(dig +short +timeout=5 "$REVERSED_IP.bl.spamcop.net" 2>/dev/null)
+        if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
+            echo "IP $IP: Bị liệt kê trong spamcop.net."
+            BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\nIP $IP: Bị liệt kê trong spamcop.net"
+            ((BLACKLISTED_IPS++))
+            # Cung cấp URL để xóa IP
+            DELIST_URL="https://spamcop.net/bl.shtml?ip=$IP"
+            echo "Lưu ý: Xác nhận CAPTCHA) trên trang web, truy cập: $DELIST_URL hoàn thành các bước thủ công Để xóa IP khỏi spamcop.net"
+        else
+            echo "IP $IP: ."
+        fi
+    done
+
+    echo -e "\n===== THỐNG KẾ ====="
+    if [ $BLACKLISTED_IPS -eq 0 ]; then
+        echo "Không có IP nào được liệt kê trong spamcop.net."
+    else
+        echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
+        echo -e "Danh sách IP bị blacklist:\n$BLACKLISTED_DETAILS"
+    fi
+    echo -e "\nLưu ý: Quá trình xóa khỏi SpamCop thường yêu cầu truy cập URL và hoàn thành các bước thủ công. Vui lòng kiểm tra lại sau khi thực hiện."
+    echo -n "Nhấn Enter để quay lại menu..."
+    read
+}
+
+# Hàm xóa một dãy IP khỏi spamcop.net
+remove_ip_range_spamcop() {
+    echo -n "Nhập IP bắt đầu (ví dụ: 192.168.1.1): "
+    read START_IP
+    if ! validate_ip "$START_IP"; then
+        echo "IP bắt đầu không hợp lệ!"
+        sleep 2
+        return
+    fi
+
+    echo -n "Nhập IP kết thúc (ví dụ: 192.168.1.10): "
+    read END_IP
+    if ! validate_ip "$END_IP"; then
+        echo "IP kết thúc không hợp lệ!"
+        sleep 2
+        return
+    fi
+
+    IFS='.' read -r s1 s2 s3 s4 <<< "$START_IP"
+    IFS='.' read -r e1 e2 e3 e4 <<< "$END_IP"
+
+    START_NUM=$((s1 * 256**3 + s2 * 256**2 + s3 * 256 + s4))
+    END_NUM=$((e1 * 256**3 + e2 * 256**2 + e3 * 256 + e4))
+
+    if [ $START_NUM -gt $END_NUM ]; then
+        echo "IP bắt đầu phải nhỏ hơn hoặc bằng IP kết thúc!"
+        sleep 2
+        return
+    fi
+
+    # Kiểm tra giới hạn số lượng IP trong dãy
+    if [ $((END_NUM - START_NUM + 1)) -gt $MAX_IPS ]; then
+        echo "Dãy IP quá lớn! Giới hạn là $MAX_IPS địa chỉ."
+        sleep 2
+        return
+    fi
+
+    IPS=()
+    for ((i = START_NUM; i <= END_NUM; i++)); do
+        OCT1=$((i / 256**3))
+        OCT2=$(((i / 256**2) % 256))
+        OCT3=$(((i / 256) % 256))
+        OCT4=$((i % 256))
+        IP="$OCT1.$OCT2.$OCT3.$OCT4"
+        IPS+=("$IP")
+    done
+
+    TOTAL_IPS=${#IPS[@]}
+    BLACKLISTED_IPS=0
+    BLACKLISTED_DETAILS=""
+
+    echo "Đang kiểm tra và xử lý $TOTAL_IPS IP trong dãy từ $START_IP đến $END_IP..."
+    echo -e "\n===== KẾT QUẢ KIỂM TRA VÀ XÓA ====="
+    for IP in "${IPS[@]}"; do
+        # Kiểm tra xem IP có bị liệt kê trong bl.spamcop.net không
+        REVERSED_IP=$(echo "$IP" | awk -F'.' '{print $4"."$3"."$2"."$1}')
+        RESULT=$(dig +short +timeout=5 "$REVERSED_IP.bl.spamcop.net" 2>/dev/null)
+        
+        if [ -n "$RESULT" ] && echo "$RESULT" | grep -q "^127\."; then
+            echo "IP $IP: Bị liệt kê trong spamcop.net"
+            BLACKLISTED_DETAILS="$BLACKLISTED_DETAILS\n$IP: Bị liệt kê trong spamcop.net"
+            ((BLACKLISTED_IPS++))
+            # Cung cấp URL để xóa IP
+            DELIST_URL="https://spamcop.net/bl.shtml?ip=$IP"
+             echo "Lưu ý: Xác nhận CAPTCHA) trên trang web, truy cập: $DELIST_URL hoàn thành các bước thủ công Để xóa IP khỏi spamcop.net"
+        else
+            echo "IP $IP: ."
+        fi
+    done
+
+    echo -e "\n===== THỐNG KẾ ====="
+    if [ $BLACKLISTED_IPS -eq 0 ]; then
+        echo "Không có IP nào trong dãy bị liệt kê trong spamcop.net."
+    else
+        echo "Tổng số IP bị liệt kê: $BLACKLISTED_IPS / $TOTAL_IPS"
+        echo -e "Danh sách IP bị blacklist:\n$BLACKLISTED_DETAILS"
+    fi
+    echo -e "\nLưu ý: Quá trình xóa khỏi SpamCop thường yêu cầu truy cập URL và hoàn thành các bước thủ công. Vui lòng kiểm tra lại sau khi thực hiện."
     echo -n "Nhấn Enter để quay lại menu..."
     read
 }
@@ -458,6 +594,12 @@ while true; do
             remove_ip_range_barracuda
             ;;
         7)
+            remove_from_spamcop
+            ;;
+        8)
+            remove_ip_range_spamcop
+            ;;
+        9)
             echo "Đang thoát..."
             sleep 1
             exit 0
